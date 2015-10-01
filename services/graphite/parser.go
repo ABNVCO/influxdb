@@ -1,12 +1,13 @@
 package graphite
 
 import (
-	"fmt"
-	"math"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
+    "fmt"
+    "math"
+    "sort"
+    "strconv"
+    "strings"
+    "time"
+    "os"
 
 	"github.com/influxdb/influxdb/models"
 )
@@ -75,6 +76,11 @@ func NewParserWithOptions(options Options) (*Parser, error) {
 		}
 		matcher.Add(filter, tmpl)
 	}
+
+    if len(os.Getenv("DEBUG_GRAPHITE")) > 0 {
+        matcher.root.PrintTree()
+    }
+
 	return &Parser{matcher: matcher, tags: options.DefaultTags}, nil
 }
 
@@ -309,6 +315,17 @@ func (n *node) search(lineParts []string) *template {
 		return n.children[len(n.children)-1].search(lineParts[1:])
 	}
 	return n.template
+}
+
+func (n *node) printnode(indent int) {
+    fmt.Println(strings.Repeat(" ", indent) + n.value)
+    for _, child := range n.children {
+        child.printnode(indent + 2)
+    }
+}
+
+func (n *node) PrintTree() {
+    n.printnode(0)
 }
 
 func (n *node) Search(line string) *template {

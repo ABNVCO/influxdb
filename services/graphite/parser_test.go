@@ -546,3 +546,167 @@ func TestParseTemplateWhitespace(t *testing.T) {
 		t.Errorf("parse mismatch: got %v, exp %v", pt.String(), exp.String())
 	}
 }
+
+func TestFilterMatchEnquos(t *testing.T) {
+
+        // Before testing sync the templates list with the latest production
+        // configuration.
+        templates := []string{
+            "systems.*.cpu.* .host.measurement.cpu.measurement category=system",
+            "systems.*.diskspace.* .host.measurement.mount.measurement category=system",
+            "systems.*.iostat.* .host.measurement.dev.measurement category=system",
+            "systems.*.loadavg.* .host.measurement.measurement category=system",
+            "systems.*.memory.* .host.measurement.measurement category=system",
+            "systems.*.network.* .host.measurement.dev.measurement category=system",
+            "systems.*.ntpd.* .host.measurement.measurement category=system",
+            "systems.*.proc.* .host.measurement.measurement category=system",
+            "systems.*.sockets.* .host.measurement.measurement category=system",
+            "systems.*.tcp.* .host.measurement.measurement category=system",
+            "systems.*.udp.* .host.measurement.measurement category=system",
+            "systems.*.users.* .host.measurement.measurement category=system",
+            "systems.*.vmstat.* .host.measurement.measurement category=system",
+            "systems.*.redis.* .host..env.measurement* category=redis",
+            "systems.*.elasticsearch.* .host..env.measurement* category=elasticsearch",
+            "systems.*.haproxy.enquos.frontend.* .host..env.measurement* category=haproxy",
+            "systems.*.haproxy.* .host..env.backend.measurement* category=haproxy",
+            "systems.*.nfsd.* .host...measurement* category=nfsd",
+            "systems.*.nginx.* .host..measurement* category=nginx",
+            "enquos.cassandra.*.jvm.* ..host.measurement* category=cassandra",
+            "enquos.cassandra.*.org.apache.cassandra.metrics.ColumnFamily.* ..host...measurement...keyspace.table.measurement* category=cassandra",
+            "enquos.cassandra.*.org.apache.cassandra.metrics.keyspace.* ..host...measurement...keyspace.measurement* table=_ALL_,category=cassandra",
+            "enquos.cassandra.*.org.apache.cassandra.metrics.* ..host...measurement..measurement* category=cassandra",
+            "enquos.scales.*.*.cassandra.request_timer.* ..env.host.measurement.measurement.agg category=app",
+            "enquos.scales.*.*.cassandra.* ..env.host.measurement* category=app",
+            "enquos.scales.*.*.* ..env.host.measurement* category=app",
+            "enquos.timers.*.*.health_check.* ..env.host.measurement.agg category=app",
+            "enquos.timers.*.*.request_duration.* ..env.host.measurement.agg category=app",
+            "enquos.timers.*.*.* ..env.host.measurement..agg category=app",
+            "enquos.gauges.* ..env.host.measurement* category=app",
+            "enquos.counters.*.*.composite.* ..env.host..measurement.discr.agg category=app",
+            "enquos.counters.*.*.validic.* ..env.host.measurement.measurement.source.kind.agg category=app",
+            "enquos.counters.*.*.* ..env.host.measurement.agg category=app",
+            "enquos.counters.* ..env.host.measurement.agg category=app",
+            "enquos.gauges.statsd.* ..measurement* category=statsd",
+            "enquos.counters.statsd.* ..measurement* category=statsd",
+            "enquos.statsd.graphiteStats.* .measurement..measurement* category=graphite",
+            "enquos.statsd.* .measurement* category=statsd",
+        }
+
+        test_cases := []struct {
+            metric string
+            expected string
+        }{
+            // Gauges
+            {
+                "enquos.gauges.statsd.timestamp_lag 11 1435077219",
+                "statsd_timestamp_lag,category=statsd value=11 1435077219000000000",
+            },
+            // Counters
+            {
+                "enquos.counters.web.a1.composite.request_success.failure.count 11 1435077219",
+                "request_success,agg=count,category=app,discr=failure,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a4.composite.request_route.food.count 11 1435077219",
+                "request_route,agg=count,category=app,discr=food,env=web,host=a4 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.celery.w1.composite.chargify_subscription_cache.miss.count 11 1435077219",
+                "chargify_subscription_cache,agg=count,category=app,discr=miss,env=celery,host=w1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.mobile.a1.composite.groupfinder.hit.rate 11 1435077219",
+                "groupfinder,agg=rate,category=app,discr=hit,env=mobile,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a2.composite.cron_task_fired.check_all_tokens.rate 11 1435077219",
+                "cron_task_fired,agg=rate,category=app,discr=check_all_tokens,env=web,host=a2 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a1.composite.request_status.resp200.count 11 1435077219",
+                "request_status,agg=count,category=app,discr=resp200,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a1.composite.registration.init.count 11 1435077219",
+                "registration,agg=count,category=app,discr=init,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a1.composite.password.strength_failure.rate 11 1435077219",
+                "password,agg=rate,category=app,discr=strength_failure,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a1.composite.nutrition_favorite.added.count 11 1435077219",
+                "nutrition_favorite,agg=count,category=app,discr=added,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a1.composite.login.success.count 11 1435077219",
+                "login,agg=count,category=app,discr=success,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a1.composite.password_reset.init.count 11 1435077219",
+                "password_reset,agg=count,category=app,discr=init,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.mobile.a1.composite.nutrition_delta.miss.count 11 1435077219",
+                "nutrition_delta,agg=count,category=app,discr=miss,env=mobile,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a1.composite.about_dev.attempt.count 11 1435077219",
+                "about_dev,agg=count,category=app,discr=attempt,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a1.composite.chargify_webhook.statement_settled.count 11 1435077219",
+                "chargify_webhook,agg=count,category=app,discr=statement_settled,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.web.a1.ratelimit_redis_error.count 11 1435077219",
+                "ratelimit_redis_error,agg=count,category=app,env=web,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.counters.celery.w1.validic.imported.fitbit.routine.count  11 1435077219",
+                "validic_imported,agg=count,category=app,env=celery,host=w1,kind=routine,source=fitbit value=11 1435077219000000000",
+            },
+            // Timers
+            {
+                "enquos.timers.web.a3.request_duration.mean_99 11 1435077219",
+                "request_duration,agg=mean_99,category=app,env=web,host=a3 value=11 1435077219000000000",
+            },
+            {
+                "enquos.timers.mobile.a1.health_check.upper 11 1435077219",
+                "health_check,agg=upper,category=app,env=mobile,host=a1 value=11 1435077219000000000",
+            },
+            {
+                "enquos.timers.web.a2.groupfinder.total.mean 11 1435077219",
+                "groupfinder,agg=mean,category=app,env=web,host=a2 value=11 1435077219000000000",
+            },
+            // Cassandra driver
+            {
+                "enquos.scales.web.a3.cassandra.request_timer.99percentile 11 1435077219",
+                "cassandra_request_timer,agg=99percentile,category=app,env=web,host=a3 value=11 1435077219000000000",
+            },
+            {
+                "enquos.scales.celery.w2.cassandra.read_timeouts 11 1435077219",
+                "cassandra_read_timeouts,category=app,env=celery,host=w2 value=11 1435077219000000000",
+            },
+        }
+
+        p, err := graphite.NewParserWithOptions(graphite.Options{
+                Templates: templates,
+                Separator: "_",
+        })
+
+        if err != nil {
+                t.Fatalf("unexpected error creating parser, got %v", err)
+        }
+
+        for _, tc := range test_cases {
+            pt, err := p.Parse(tc.metric)
+            if err != nil {
+                    t.Fatalf("parse error: %v", err)
+            }
+            if pt.String() != tc.expected {
+                    t.Errorf("parse mismatch: got %v, exp %v", pt.String(), tc.expected)
+            }
+        }
+
+}
